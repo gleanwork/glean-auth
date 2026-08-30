@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MISE_NODE_VERSION: ${{ matrix.node-version }}
+    strategy:
+      matrix:
+        node-version: ["22.12.0", 24]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up toolchain
+        uses: jdx/mise-action@v4
+        with:
+          cache_key: "{{default}}-node-${{ matrix.node-version }}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm run test:all
+
+      - name: Audit production dependencies
+        run: npm run audit

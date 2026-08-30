@@ -1,0 +1,111 @@
+{
+  "name": "@gleanwork/auth",
+  "version": "0.1.0",
+  "description": "OAuth authentication and tenant discovery for Glean developer tools.",
+  "keywords": [
+    "authentication",
+    "cli",
+    "glean",
+    "oauth"
+  ],
+  "homepage": "https://github.com/gleanwork/glean-auth#readme",
+  "bugs": {
+    "url": "https://github.com/gleanwork/glean-auth/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gleanwork/glean-auth.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Steve Calvert",
+    "email": "steve.calvert@glean.com"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "glean-auth": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "audit": "npm audit --omit=dev",
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "format": "prettier --write \"**/*.{ts,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,json,md,yml,yaml}\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepublishOnly": "npm run test:all && npm pack --dry-run",
+    "pretest": "npm run build",
+    "release": "release-it",
+    "test": "vitest run",
+    "test:all": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "open": "^11.0.2",
+    "openid-client": "^6.8.7",
+    "proper-lockfile": "^4.1.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@release-it-plugins/lerna-changelog": "^9.0.0",
+    "@types/node": "^22.20.1",
+    "@types/proper-lockfile": "^4.1.4",
+    "bintastic": "^4.2.1",
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "release-it": "^20.2.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents": false
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "overrides": {
+    "esbuild": "0.28.2"
+  },
+  "release-it": {
+    "git": {
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true,
+      "tokenRef": "GITHUB_AUTH"
+    },
+    "npm": {
+      "publish": true
+    },
+    "plugins": {
+      "@release-it-plugins/lerna-changelog": {
+        "infile": "CHANGELOG.md",
+        "launchEditor": true
+      }
+    }
+  }
+}
