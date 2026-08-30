@@ -544,6 +544,7 @@ function normalizeOptions(options: GleanAuthOptions): NormalizedOptions {
     throw new TypeError("OAuth options must be an object");
   }
   const { serverUrl } = parseServerUrl(options.serverUrl);
+  const issuer = new URL("/oauth", `${serverUrl}/`);
   const scopes = normalizeScopes([
     ...BASE_SCOPES,
     ...(options.scopes === undefined
@@ -579,12 +580,12 @@ function normalizeOptions(options: GleanAuthOptions): NormalizedOptions {
   );
   const stateKey: OAuthStateKey = {
     profile,
-    issuer: serverUrl,
+    issuer: issuer.href,
     registrationScope: scope,
   };
 
   return {
-    issuer: new URL(serverUrl),
+    issuer,
     serverUrl,
     scopes,
     scope,
@@ -598,7 +599,7 @@ function normalizeOptions(options: GleanAuthOptions): NormalizedOptions {
     stateKey,
     flightKey: JSON.stringify({
       profile,
-      issuer: serverUrl,
+      issuer: issuer.href,
       registrationScope: [...scopes].sort().join(" "),
       stateDir: options.stateDir,
       clientId,

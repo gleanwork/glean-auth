@@ -22,21 +22,21 @@ The JavaScript API is ESM-only.
 Sign in with your work email and request the scopes your application needs:
 
 ```bash
-npx glean-auth login --email you@example.com --scopes SEARCH
+npx glean-auth login --email you@example.com --scopes search
 ```
 
 Print the current token for a shell command or non-JavaScript application:
 
 ```bash
 export GLEAN_API_TOKEN="$(
-  npx glean-auth token --email you@example.com --scopes SEARCH
+  npx glean-auth token --email you@example.com --scopes search
 )"
 ```
 
 You can also run the CLI without installing it in a project:
 
 ```bash
-npx -y @gleanwork/auth login --email you@example.com --scopes SEARCH
+npx -y @gleanwork/auth login --email you@example.com --scopes search
 ```
 
 ## CLI
@@ -49,10 +49,10 @@ npx -y @gleanwork/auth login --email you@example.com --scopes SEARCH
 | `logout` | Remove the matching saved OAuth credentials.                   |
 
 ```bash
-npx glean-auth status --email you@example.com --scopes SEARCH
-npx glean-auth status --email you@example.com --scopes SEARCH --json
-npx glean-auth token --email you@example.com --scopes SEARCH
-npx glean-auth logout --email you@example.com --scopes SEARCH
+npx glean-auth status --email you@example.com --scopes search
+npx glean-auth status --email you@example.com --scopes search --json
+npx glean-auth token --email you@example.com --scopes search
+npx glean-auth logout --email you@example.com --scopes search
 ```
 
 `token` prints only the token and a trailing newline to stdout. It does not start an interactive login. Run `login` first or set `GLEAN_API_TOKEN`.
@@ -64,6 +64,8 @@ npx glean-auth logout --email you@example.com --scopes SEARCH
 | `--email <address>`    | Discover the Glean tenant associated with an email address.         |
 | `--server-url <url>`   | Use an explicit Glean backend URL instead of tenant discovery.      |
 | `--scopes <scope,...>` | Request OAuth scopes. This option is repeatable and case-sensitive. |
+
+Use the lowercase scope names advertised by the Glean OAuth server, such as `search`, `chat`, or `mcp`.
 
 Run `npx glean-auth --help` for shared options and the command list. Run `npx glean-auth <command> --help` for command-specific options.
 
@@ -98,7 +100,7 @@ import { createGleanTokenProvider, discoverGleanTenant } from "@gleanwork/auth";
 const tenant = await discoverGleanTenant("you@example.com");
 const getAccessToken = createGleanTokenProvider({
   serverUrl: tenant.serverUrl,
-  scopes: ["SEARCH"],
+  scopes: ["search"],
 });
 
 const token = await getAccessToken();
@@ -118,7 +120,7 @@ const glean = new Glean({
   serverURL: "https://your-company-be.glean.com",
   apiToken: createGleanTokenProvider({
     serverUrl: "https://your-company-be.glean.com",
-    scopes: ["SEARCH"],
+    scopes: ["search"],
   }),
 });
 ```

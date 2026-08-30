@@ -82,7 +82,7 @@ async function oauthFixture(
       requests.push({ path, body });
       response.setHeader("content-type", "application/json");
 
-      if (path === "/.well-known/oauth-authorization-server") {
+      if (path === "/.well-known/oauth-authorization-server/oauth") {
         discoveryRequests += 1;
         const overrides =
           typeof metadataOverrides === "function"
@@ -90,7 +90,7 @@ async function oauthFixture(
             : metadataOverrides;
         response.end(
           JSON.stringify({
-            issuer: "https://acme-be.glean.com",
+            issuer: "https://acme-be.glean.com/oauth",
             authorization_endpoint: "https://acme-be.glean.com/oauth/authorize",
             token_endpoint: "https://acme-be.glean.com/oauth/token",
             registration_endpoint: "https://acme-be.glean.com/oauth/register",
@@ -190,12 +190,34 @@ function fixtureStateKey(
 ): OAuthStateKey {
   return {
     profile: "default",
-    issuer: "https://acme-be.glean.com",
+    issuer: "https://acme-be.glean.com/oauth",
     registrationScope,
   };
 }
 
 describe("Glean OAuth", () => {
+  it("discovers the Glean OAuth issuer beneath the canonical backend", async () => {
+    delete process.env.GLEAN_API_TOKEN;
+    const fixture = await oauthFixture();
+    const auth = createGleanAuth({
+      ...fixture.options,
+      clientId: "static-client",
+    });
+
+    await auth.login({
+      authorize: (authorizationUrl) =>
+        Promise.resolve(
+          new URL(
+            `http://127.0.0.1:54321/oauth/callback?code=code&state=${String(authorizationUrl.searchParams.get("state"))}`,
+          ),
+        ),
+    });
+
+    expect(fixture.dispatchedUrls).toContain(
+      "https://acme-be.glean.com/.well-known/oauth-authorization-server/oauth",
+    );
+  });
+
   it("uses DCR and PKCE, rotates refresh tokens, and single-flights providers", async () => {
     delete process.env.GLEAN_API_TOKEN;
     const fixture = await oauthFixture();
@@ -248,7 +270,7 @@ describe("Glean OAuth", () => {
     const persisted = await readState(
       {
         profile: "default",
-        issuer: "https://acme-be.glean.com",
+        issuer: "https://acme-be.glean.com/oauth",
         registrationScope: "openid offline_access SEARCH",
       },
       { stateDir: fixture.options.stateDir },

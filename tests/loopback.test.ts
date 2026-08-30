@@ -1,5 +1,7 @@
 import { once } from "node:events";
 import { createServer } from "node:http";
+import { connect, type Socket } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { authorizeOnLoopback } from "../src/loopback.js";
 
@@ -113,6 +115,42 @@ describe("authorizeOnLoopback", () => {
       expect.stringContaining(authorizationUrl.href),
     );
     error.mockRestore();
+  });
+
+  it("does not wait for a browser keep-alive connection to close", async () => {
+    const port = await availablePort();
+    const redirectUri = new URL(
+      `http://127.0.0.1:${String(port)}/oauth/callback`,
+    );
+    const authorizationUrl = new URL(
+      "https://acme-be.glean.com/oauth/authorize?state=expected-state",
+    );
+    let socket: Socket | undefined;
+
+    const authorization = authorizeOnLoopback(authorizationUrl, {
+      redirectUri,
+      timeout: 2_000,
+      openUrl: async () => {
+        socket = connect(port, "127.0.0.1");
+        await once(socket, "connect");
+        socket.write(
+          "GET /oauth/callback?code=accepted&state=expected-state HTTP/1.1\r\n" +
+            `Host: 127.0.0.1:${String(port)}\r\n` +
+            "Connection: keep-alive\r\n\r\n" +
+            "GET /still-open HTTP/1.1\r\n",
+        );
+        await once(socket, "data");
+      },
+    });
+
+    const outcome = await Promise.race([
+      authorization.then(() => "resolved"),
+      delay(100, "still-waiting"),
+    ]);
+    socket?.destroy();
+    await authorization;
+
+    expect(outcome).toBe("resolved");
   });
 
   it("times out a never-settling browser launch and closes the listener", async () => {

@@ -66,6 +66,16 @@ describe("built glean-auth CLI", () => {
     expect(result.stdout).toContain("Usage: glean-auth [options] [command]");
   });
 
+  it("shows shared tenant and scope options in command help", async () => {
+    const result = await runBin("login", "--help", runOptions());
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Global Options:");
+    expect(result.stdout).toContain("--email <email>");
+    expect(result.stdout).toContain("--server-url <url>");
+    expect(result.stdout).toContain("--scopes <scopes>");
+  });
+
   it("prints the package version", async () => {
     const result = await runBin("--version", runOptions());
 
@@ -159,7 +169,7 @@ describe("built glean-auth CLI", () => {
     );
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe("Logged out of acme.");
+    expect(result.stdout).toBe("Signed out of acme.");
     expect(outputText(result.stdout) + outputText(result.stderr)).not.toMatch(
       /token|secret/iu,
     );

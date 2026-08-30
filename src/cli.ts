@@ -32,6 +32,7 @@ export function createProgram(): Command {
     .version(PACKAGE_VERSION)
     .addHelpCommand(false)
     .showHelpAfterError()
+    .configureHelp({ showGlobalOptions: true, sortOptions: true })
     .option("--email <email>", "discover the Glean tenant for an email address")
     .option("--server-url <url>", "use an explicit Glean server URL")
     .option(
@@ -47,12 +48,9 @@ export function createProgram(): Command {
       const options = loginCommand.optsWithGlobals<CommonOptions>();
       const tenant = await resolveFromOptions(options);
       const auth = createGleanAuth(authOptions(tenant, options));
-      try {
-        await auth.login({ interactive: true });
-      } catch {
-        throw new Error("OAuth sign-in failed");
-      }
-      process.stdout.write(`Logged in to ${tenant.instance}.\n`);
+      process.stdout.write(`Signing in to ${tenant.instance}...\n`);
+      await auth.login({ interactive: true });
+      process.stdout.write(`Signed in to ${tenant.instance}.\n`);
     });
 
   const statusCommand = program
@@ -75,12 +73,7 @@ export function createProgram(): Command {
       }
 
       const auth = createGleanAuth(authOptions(tenant, options));
-      let status: GleanAuthStatus;
-      try {
-        status = await auth.status();
-      } catch {
-        throw new Error("Unable to read authentication status");
-      }
+      const status: GleanAuthStatus = await auth.status();
       printStatus(
         {
           configured: true,
@@ -102,9 +95,11 @@ export function createProgram(): Command {
       let token: string;
       try {
         token = await auth.getAccessToken();
-      } catch {
+      } catch (error: unknown) {
         throw new Error(
-          "Credentials unavailable. Run glean-auth login before requesting a token.",
+          `${errorMessage(error, "Credentials unavailable")}. ` +
+            "Run glean-auth login before requesting a token.",
+          { cause: error },
         );
       }
       process.stdout.write(`${token}\n`);
@@ -117,12 +112,8 @@ export function createProgram(): Command {
       const options = logoutCommand.optsWithGlobals<CommonOptions>();
       const tenant = await resolveFromOptions(options);
       const auth = createGleanAuth(authOptions(tenant, options));
-      try {
-        await auth.logout();
-      } catch {
-        throw new Error("Unable to remove OAuth credentials");
-      }
-      process.stdout.write(`Logged out of ${tenant.instance}.\n`);
+      await auth.logout();
+      process.stdout.write(`Signed out of ${tenant.instance}.\n`);
     });
 
   return program;
@@ -244,6 +235,13 @@ function isEntrypoint(invokedPath: string | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim() !== "") {
+    return error.message.replace(/[.]+$/u, "");
+  }
+  return fallback;
 }
 
 function redactMessage(message: string): string {

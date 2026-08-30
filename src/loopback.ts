@@ -74,14 +74,17 @@ export async function authorizeOnLoopback(
       return;
     }
 
+    const settle = (): void => settleCallback?.(requestUrl);
     if (validError) {
       response.writeHead(400, responseHeaders());
-      response.end("Authorization was not granted. Return to the terminal.");
+      response.end(
+        "Authorization was not granted. Return to the terminal.",
+        settle,
+      );
     } else {
       response.writeHead(200, responseHeaders());
-      response.end("Signed in. You can return to the terminal.");
+      response.end("Signed in. You can return to the terminal.", settle);
     }
-    settleCallback?.(requestUrl);
   });
 
   server.once("clientError", (_error, socket) => {
@@ -167,5 +170,9 @@ async function close(server: Server): Promise<void> {
       if (error) reject(error);
       else resolve();
     });
+    // Browsers may keep the callback connection alive or begin another request
+    // on it. Once the OAuth response has been flushed, no connection to this
+    // one-shot listener should be allowed to delay token exchange.
+    server.closeAllConnections();
   });
 }
