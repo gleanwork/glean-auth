@@ -42,7 +42,7 @@ describe("glean-auth command actions", () => {
       "glean-auth",
       "login",
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
     ]);
 
     expect(stdout.join("")).toBe("Signing in to acme...\nSigned in to acme.\n");
@@ -58,7 +58,7 @@ describe("glean-auth command actions", () => {
         "glean-auth",
         "login",
         "--server-url",
-        "https://acme.glean.com",
+        "https://acme-be.glean.com",
       ]),
     ).rejects.toThrow("OAuth server discovery failed");
 
@@ -74,7 +74,7 @@ describe("glean-auth command actions", () => {
         "glean-auth",
         "status",
         "--server-url",
-        "https://acme.glean.com",
+        "https://acme-be.glean.com",
       ]),
     ).rejects.toThrow("Unable to read OAuth state");
 
@@ -92,7 +92,7 @@ describe("glean-auth command actions", () => {
         "glean-auth",
         "token",
         "--server-url",
-        "https://acme.glean.com",
+        "https://acme-be.glean.com",
       ]),
     ).rejects.toThrow(
       "OAuth token refresh failed. Run glean-auth login before requesting a token.",
@@ -108,7 +108,7 @@ describe("glean-auth command actions", () => {
       "glean-auth",
       "logout",
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
     ]);
     expect(stdout.join("")).toBe("Signed out of acme.\n");
 
@@ -122,7 +122,7 @@ describe("glean-auth command actions", () => {
         "glean-auth",
         "logout",
         "--server-url",
-        "https://acme.glean.com",
+        "https://acme-be.glean.com",
       ]),
     ).rejects.toThrow("Unable to remove OAuth state");
     expect(stdout).toEqual([]);

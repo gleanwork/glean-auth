@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 export interface GleanTenant {
   serverUrl: string;
   instance: string;
@@ -10,16 +12,16 @@ export interface ParseServerUrlOptions {
 
 const INSTANCE_LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
 const BACKEND_HOST = new RegExp(`^(${INSTANCE_LABEL})-be\\.glean\\.com$`, "u");
-const GLEAN_HOST = new RegExp(`^(${INSTANCE_LABEL})\\.glean\\.com$`, "u");
-const ASKSCIO_HOST = new RegExp(`^(${INSTANCE_LABEL})\\.askscio\\.com$`, "u");
+const LEGACY_ASKSCIO_HOST = /(?:^|\.)askscio\.com$/u;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const RESERVED_INSTANCES = new Set(["app"]);
+const RESERVED_HOSTS = new Set(["app.glean.com", "glean.com"]);
 const INVALID_SERVER_URL =
-  "The server URL must be a valid trusted Glean HTTPS origin";
+  "The server URL must be a valid Glean backend HTTPS origin";
 
 /**
- * Parse a server origin and map all supported customer host forms to the
- * canonical Glean backend origin.
+ * Parse and preserve a complete Glean backend origin. Canonical Glean backend
+ * hosts expose their tenant label; custom backend hosts use the hostname as
+ * their display identity.
  */
 export function parseServerUrl(
   value: string,
@@ -47,8 +49,14 @@ export function parseServerUrl(
   }
 
   const hostname = url.hostname.toLowerCase();
-  if (options.allowLocalhost === true && LOOPBACK_HOSTS.has(hostname)) {
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+  if (hostname.endsWith(".")) {
+    throw new TypeError(INVALID_SERVER_URL);
+  }
+  if (LOOPBACK_HOSTS.has(hostname)) {
+    if (
+      options.allowLocalhost !== true ||
+      (url.protocol !== "http:" && url.protocol !== "https:")
+    ) {
       throw new TypeError(INVALID_SERVER_URL);
     }
     return {
@@ -57,21 +65,21 @@ export function parseServerUrl(
     };
   }
 
+  const address = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
+  if (isIP(address) !== 0) {
+    throw new TypeError(INVALID_SERVER_URL);
+  }
+
   if (url.protocol !== "https:" || url.port !== "") {
     throw new TypeError(INVALID_SERVER_URL);
   }
 
-  const match =
-    BACKEND_HOST.exec(hostname) ??
-    GLEAN_HOST.exec(hostname) ??
-    ASKSCIO_HOST.exec(hostname);
-  const instance = match?.[1];
-  if (instance === undefined || RESERVED_INSTANCES.has(instance)) {
+  if (RESERVED_HOSTS.has(hostname) || LEGACY_ASKSCIO_HOST.test(hostname)) {
     throw new TypeError(INVALID_SERVER_URL);
   }
 
   return {
-    serverUrl: `https://${instance}-be.glean.com`,
-    instance,
+    serverUrl: url.origin,
+    instance: BACKEND_HOST.exec(hostname)?.[1] ?? hostname,
   };
 }

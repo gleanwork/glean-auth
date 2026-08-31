@@ -2,22 +2,23 @@ import { describe, expect, it } from "vitest";
 import { parseServerUrl } from "../src/server-url.js";
 
 describe("parseServerUrl", () => {
-  it.each([
-    "https://acme-be.glean.com",
-    "https://acme.glean.com",
-    "https://acme.askscio.com",
-    " HTTPS://ACME.GLEAN.COM/ ",
-  ])("canonicalizes the trusted host form %s", (value) => {
-    expect(parseServerUrl(value)).toEqual({
-      serverUrl: "https://acme-be.glean.com",
-      instance: "acme",
-    });
-  });
+  it.each(["https://acme-be.glean.com", " HTTPS://ACME-BE.GLEAN.COM/ "])(
+    "preserves the canonical backend origin %s",
+    (value) => {
+      expect(parseServerUrl(value)).toEqual({
+        serverUrl: "https://acme-be.glean.com",
+        instance: "acme",
+      });
+    },
+  );
 
-  it("supports hyphenated instance names", () => {
-    expect(parseServerUrl("https://north-america.askscio.com")).toEqual({
-      serverUrl: "https://north-america-be.glean.com",
-      instance: "north-america",
+  it.each([
+    ["https://acmecorp-pl.glean.com", "acmecorp-pl.glean.com"],
+    [" HTTPS://SEARCH.EXAMPLE.COM/ ", "search.example.com"],
+  ])("preserves the custom backend origin %s", (value, instance) => {
+    expect(parseServerUrl(value)).toEqual({
+      serverUrl: new URL(value.trim()).origin,
+      instance,
     });
   });
 
@@ -25,10 +26,18 @@ describe("parseServerUrl", () => {
     "https://app.glean.com",
     "https://glean.com",
     "https://askscio.com",
-    "https://acme.glean.com.example.org",
-    "https://acme-be.glean.com.example.org",
-    "https://acme.askscio.com.example.org",
-    "https://evilacme.glean.com.evil.test",
+    "https://acme.askscio.com",
+    "https://north-america.askscio.com",
+    "https://app.glean.com.",
+    "https://acme.askscio.com.",
+    "https://acme-be.glean.com.",
+    "https://localhost",
+    "https://127.0.0.1",
+    "https://127.0.0.2",
+    "https://127.255.255.254",
+    "https://192.168.1.10",
+    "https://[::1]",
+    "https://[::ffff:127.0.0.1]",
     "acme.glean.com",
     "http://acme.glean.com",
     "ftp://acme.glean.com",

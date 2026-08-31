@@ -50,7 +50,7 @@ describe("discoverGleanTenant", () => {
   it("posts the normalized discovery payload to the fixed endpoint", async () => {
     const transport = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse({
-        search_config: { queryURL: "https://customer.glean.com/" },
+        search_config: { queryURL: "https://customer-be.glean.com/" },
       }),
     );
     vi.stubGlobal("fetch", transport);
@@ -77,8 +77,8 @@ describe("discoverGleanTenant", () => {
 
   it.each([
     ["https://customer-be.glean.com", "customer"],
-    ["https://customer.glean.com", "customer"],
-    ["https://customer.askscio.com", "customer"],
+    ["https://customer.glean.com", "customer.glean.com"],
+    ["https://search.example.com", "search.example.com"],
   ])("accepts trusted queryURL %s", async (queryURL, instance) => {
     vi.stubGlobal(
       "fetch",
@@ -88,16 +88,14 @@ describe("discoverGleanTenant", () => {
     );
 
     await expect(discoverGleanTenant("person@example.com")).resolves.toEqual({
-      serverUrl: `https://${instance}-be.glean.com`,
+      serverUrl: queryURL,
       instance,
     });
   });
 
   it.each([
     "https://app.glean.com",
-    "https://customer.glean.com.evil.test",
-    "https://customer-be.glean.com.evil.test",
-    "https://customer.askscio.com.evil.test",
+    "https://customer.askscio.com",
     "not a URL",
   ])("sanitizes an invalid discovered queryURL: %s", async (queryURL) => {
     vi.stubGlobal(

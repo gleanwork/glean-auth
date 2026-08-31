@@ -67,6 +67,7 @@ async function oauthFixture(
   grantedScope = "openid offline_access SEARCH",
   metadataOverrides:
     MetadataOverrides | ((discoveryRequest: number) => MetadataOverrides) = {},
+  serverOrigin = "https://acme-be.glean.com",
 ): Promise<OAuthFixture> {
   const requests: Array<{ path: string; body: string }> = [];
   const dispatchedUrls: string[] = [];
@@ -90,10 +91,10 @@ async function oauthFixture(
             : metadataOverrides;
         response.end(
           JSON.stringify({
-            issuer: "https://acme-be.glean.com/oauth",
-            authorization_endpoint: "https://acme-be.glean.com/oauth/authorize",
-            token_endpoint: "https://acme-be.glean.com/oauth/token",
-            registration_endpoint: "https://acme-be.glean.com/oauth/register",
+            issuer: `${serverOrigin}/oauth`,
+            authorization_endpoint: `${serverOrigin}/oauth/authorize`,
+            token_endpoint: `${serverOrigin}/oauth/token`,
+            registration_endpoint: `${serverOrigin}/oauth/register`,
             code_challenge_methods_supported: ["S256"],
             scopes_supported: advertisedScopes,
             ...overrides,
@@ -161,7 +162,7 @@ async function oauthFixture(
           input instanceof Request ? input : new Request(input, init);
         const url = new URL(request.url);
         dispatchedUrls.push(url.href);
-        if (url.hostname === "acme-be.glean.com") {
+        if (url.origin === serverOrigin) {
           url.protocol = "http:";
           url.hostname = "127.0.0.1";
           url.port = String(address.port);
@@ -173,7 +174,7 @@ async function oauthFixture(
 
   return {
     options: {
-      serverUrl: "https://acme.glean.com",
+      serverUrl: serverOrigin,
       scopes: ["SEARCH"],
       callbackPort: 54_321,
       stateDir: await stateDirectory(),
@@ -190,7 +191,7 @@ function fixtureStateKey(
 ): OAuthStateKey {
   return {
     profile: "default",
-    issuer: "https://acme-be.glean.com/oauth",
+    issuer: `${fixture.options.serverUrl}/oauth`,
     registrationScope,
   };
 }
@@ -216,6 +217,36 @@ describe("Glean OAuth", () => {
     expect(fixture.dispatchedUrls).toContain(
       "https://acme-be.glean.com/.well-known/oauth-authorization-server/oauth",
     );
+  });
+
+  it("uses a custom backend origin for OAuth discovery and endpoints", async () => {
+    delete process.env.GLEAN_API_TOKEN;
+    const fixture = await oauthFixture(
+      ["openid", "offline_access", "SEARCH"],
+      "openid offline_access SEARCH",
+      {},
+      "https://search.example.com",
+    );
+    const auth = createGleanAuth(fixture.options);
+
+    await auth.login({
+      authorize: (authorizationUrl) => {
+        expect(authorizationUrl.origin).toBe("https://search.example.com");
+        return Promise.resolve(
+          new URL(
+            `http://127.0.0.1:54321/oauth/callback?code=code&state=${String(authorizationUrl.searchParams.get("state"))}`,
+          ),
+        );
+      },
+    });
+
+    expect(fixture.dispatchedUrls).toContain(
+      "https://search.example.com/.well-known/oauth-authorization-server/oauth",
+    );
+    expect(fixture.requests.map((request) => request.path)).toContain(
+      "/oauth/register",
+    );
+    expect(fixture.tokenRequests()).toBe(1);
   });
 
   it("uses DCR and PKCE, rotates refresh tokens, and single-flights providers", async () => {

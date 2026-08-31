@@ -104,7 +104,7 @@ describe("built glean-auth CLI", () => {
     const secret = "api-token-that-must-not-be-rendered";
     const result = await runBin(
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
       "--scopes",
       "SEARCH",
       "status",
@@ -131,7 +131,7 @@ describe("built glean-auth CLI", () => {
     const result = await runBin(
       "token",
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
       "--scopes",
       "SEARCH",
       {
@@ -149,7 +149,7 @@ describe("built glean-auth CLI", () => {
     const result = await runBin(
       "token",
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
       "--scopes",
       "SEARCH",
       runOptions(),
@@ -163,7 +163,7 @@ describe("built glean-auth CLI", () => {
   it("logs out using isolated XDG state", async () => {
     const result = await runBin(
       "--server-url",
-      "https://acme.glean.com",
+      "https://acme-be.glean.com",
       "logout",
       runOptions(),
     );

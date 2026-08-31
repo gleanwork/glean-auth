@@ -62,7 +62,7 @@ npx glean-auth logout --email you@example.com --scopes search
 | Option                 | Description                                                         |
 | ---------------------- | ------------------------------------------------------------------- |
 | `--email <address>`    | Discover the Glean tenant associated with an email address.         |
-| `--server-url <url>`   | Use an explicit Glean backend URL instead of tenant discovery.      |
+| `--server-url <url>`   | Use the complete Glean backend origin instead of tenant discovery.  |
 | `--scopes <scope,...>` | Request OAuth scopes. This option is repeatable and case-sensitive. |
 
 Use the lowercase scope names advertised by the Glean OAuth server, such as `search`, `chat`, or `mcp`.
@@ -106,7 +106,9 @@ const getAccessToken = createGleanTokenProvider({
 const token = await getAccessToken();
 ```
 
-`discoverGleanTenant(email)` returns the canonical tenant instance and backend URL for an email address.
+`discoverGleanTenant(email)` returns the authoritative backend origin and a display identity for the tenant associated with an email address. Canonical `*-be.glean.com` and custom vanity backend origins are preserved exactly.
+
+When using `--server-url` or `GLEAN_SERVER_URL`, pass the complete backend origin shown under **Server instance (QE)** on the Glean About page. Do not pass the Glean web app URL or derive a backend hostname from it.
 
 `createGleanTokenProvider(options)` returns a non-interactive `() => Promise<string>` callback. It uses `GLEAN_API_TOKEN` when set. Otherwise, it reuses or refreshes credentials created by `glean-auth login`.
 

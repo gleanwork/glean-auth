@@ -36,10 +36,10 @@ describe("public API", () => {
     >();
   });
 
-  it("uses GLEAN_API_TOKEN through the public provider", async () => {
+  it("uses GLEAN_API_TOKEN through the public provider for a custom backend", async () => {
     vi.stubEnv("GLEAN_API_TOKEN", " public-api-token ");
     const provider = createGleanTokenProvider({
-      serverUrl: "https://acme.glean.com",
+      serverUrl: "https://search.example.com",
       scopes: ["SEARCH"],
     });
 
