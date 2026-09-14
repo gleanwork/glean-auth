@@ -1,3 +1,15 @@
+## v1.0.0 (2026-09-14)
+
+#### :bug: Bug Fix
+
+- [#3](https://github.com/gleanwork/glean-auth/pull/3) fix(auth): accept Glean-normalized scope grants ([@steve-calvert-glean](https://github.com/steve-calvert-glean))
+
+#### Committers: 1
+
+- Steve Calvert ([@steve-calvert-glean](https://github.com/steve-calvert-glean))
+
+
+
 ## v0.5.1 (2026-08-31)
 
 
