@@ -59,13 +59,15 @@ npx glean-auth logout --email you@example.com --scopes search
 
 ### Options
 
-| Option                 | Description                                                         |
-| ---------------------- | ------------------------------------------------------------------- |
-| `--email <address>`    | Discover the Glean tenant associated with an email address.         |
-| `--server-url <url>`   | Use the complete Glean backend origin instead of tenant discovery.  |
-| `--scopes <scope,...>` | Request OAuth scopes. This option is repeatable and case-sensitive. |
+| Option                 | Description                                                        |
+| ---------------------- | ------------------------------------------------------------------ |
+| `--email <address>`    | Discover the Glean tenant associated with an email address.        |
+| `--server-url <url>`   | Use the complete Glean backend origin instead of tenant discovery. |
+| `--scopes <scope,...>` | Request OAuth scopes. Repeatable; preserves request spelling.      |
 
-Use the lowercase scope names advertised by the Glean OAuth server, such as `search`, `chat`, or `mcp`.
+Use lowercase scope names such as `search`, `chat`, or `mcp`. Glean lowercases all scope tokens when granting access, including standard scopes. This package accepts those lowercase grants even when you request uppercase or mixed-case names. This compatibility is specific to Glean, not a general OAuth rule; a grant must still include every requested scope.
+
+Request spelling remains part of the saved state identity. Use the same scope spelling for `login`, `status`, `token`, `logout`, and the JavaScript provider. Changing spelling (for example, `SKILLS` to `skills`) requires a separate login for that scope identity; this package does not migrate or merge existing state.
 
 Run `npx glean-auth --help` for shared options and the command list. Run `npx glean-auth <command> --help` for command-specific options.
 

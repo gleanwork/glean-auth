@@ -9,6 +9,7 @@ import {
   createGleanTokenProvider,
   type GleanAuthOptions,
 } from "../src/oauth.js";
+import { createGleanTokenProvider as publicTokenProvider } from "../src/index.js";
 import { readState, writeState, type OAuthStateKey } from "../src/state.js";
 
 const temporaryDirectories: string[] = [];
@@ -64,7 +65,9 @@ interface OAuthFixture {
 
 async function oauthFixture(
   advertisedScopes = ["openid", "offline_access", "SEARCH"],
-  grantedScope = "openid offline_access SEARCH",
+  grantedScope:
+    | string
+    | ((grantType: string | null) => string) = "openid offline_access SEARCH",
   metadataOverrides:
     MetadataOverrides | ((discoveryRequest: number) => MetadataOverrides) = {},
   serverOrigin = "https://acme-be.glean.com",
@@ -118,6 +121,10 @@ async function oauthFixture(
       if (path === "/oauth/token") {
         tokenRequests += 1;
         const grantType = new URLSearchParams(body).get("grant_type");
+        const scope =
+          typeof grantedScope === "function"
+            ? grantedScope(grantType)
+            : grantedScope;
         response.end(
           JSON.stringify(
             grantType === "authorization_code"
@@ -126,14 +133,14 @@ async function oauthFixture(
                   refresh_token: "initial-refresh-token",
                   token_type: "Bearer",
                   expires_in: 30,
-                  scope: grantedScope,
+                  scope,
                 }
               : {
                   access_token: "refreshed-access-token",
                   refresh_token: "rotated-refresh-token",
                   token_type: "Bearer",
                   expires_in: 3600,
-                  scope: grantedScope,
+                  scope,
                 },
           ),
         );
@@ -362,11 +369,89 @@ describe("Glean OAuth", () => {
     });
   });
 
-  it("rejects a case-mismatched granted custom scope", async () => {
+  it.each([
+    ["SKILLS", "openid offline_access skills"],
+    ["SEARCH CHAT MCP", "openid offline_access search chat mcp"],
+    [
+      "OpenID OFFLINE_ACCESS Profile EMAIL Custom.Scope",
+      "openid offline_access profile email custom.scope",
+    ],
+  ])(
+    "accepts Glean's lowercase grants for %s across login, status, and concurrent refresh",
+    async (requestedScope, grantedScope) => {
+      delete process.env.GLEAN_API_TOKEN;
+      const fixture = await oauthFixture([], grantedScope);
+      const xdgStateHome = await stateDirectory();
+      vi.stubEnv("XDG_STATE_HOME", xdgStateHome);
+      const options = {
+        ...fixture.options,
+        stateDir: join(xdgStateHome, "glean-auth"),
+        scopes: requestedScope,
+      };
+      const auth = createGleanAuth(options);
+      const registrationScope = `openid offline_access ${requestedScope}`;
+
+      await auth.login({
+        authorize: (authorizationUrl) => {
+          expect(authorizationUrl.searchParams.get("scope")).toBe(
+            registrationScope,
+          );
+          return Promise.resolve(
+            new URL(
+              `http://127.0.0.1:54321/oauth/callback?code=code&state=${String(authorizationUrl.searchParams.get("state"))}`,
+            ),
+          );
+        },
+      });
+      await expect(auth.status()).resolves.toMatchObject({
+        authenticated: true,
+        source: "oauth",
+        refreshable: true,
+      });
+      expect(fixture.tokenRequests()).toBe(1);
+
+      const provider = publicTokenProvider({
+        serverUrl: options.serverUrl,
+        scopes: [requestedScope],
+      });
+      // A distinct flight key for the same directory also exercises file locking.
+      const secondProvider = createGleanTokenProvider({
+        ...options,
+        stateDir: `${String(options.stateDir)}/.`,
+      });
+      await expect(
+        Promise.all([provider(), provider(), secondProvider()]),
+      ).resolves.toEqual([
+        "refreshed-access-token",
+        "refreshed-access-token",
+        "refreshed-access-token",
+      ]);
+      await expect(createGleanTokenProvider(options)()).resolves.toBe(
+        "refreshed-access-token",
+      );
+      await expect(createGleanAuth(options).status()).resolves.toMatchObject({
+        authenticated: true,
+        source: "oauth",
+      });
+      expect(fixture.tokenRequests()).toBe(2);
+      await expect(
+        readState(fixtureStateKey(fixture, registrationScope), {
+          stateDir: options.stateDir,
+        }),
+      ).resolves.toMatchObject({
+        registrationScope,
+        grantedScope,
+        accessToken: "refreshed-access-token",
+        refreshToken: "rotated-refresh-token",
+      });
+    },
+  );
+
+  it("rejects a genuinely missing granted custom scope", async () => {
     delete process.env.GLEAN_API_TOKEN;
     const fixture = await oauthFixture(
       ["openid", "offline_access", "profile", "email"],
-      "openid offline_access profile Email",
+      "openid offline_access profile",
     );
     const auth = createGleanAuth({
       ...fixture.options,
@@ -383,6 +468,101 @@ describe("Glean OAuth", () => {
           ),
       }),
     ).rejects.toThrow("OAuth grant is missing a requested scope");
+  });
+
+  it.each([
+    "openid offline_access skill",
+    "openid skills",
+    "offline_access skills",
+  ])("rejects a narrowed refresh grant: %s", async (narrowedScope) => {
+    delete process.env.GLEAN_API_TOKEN;
+    const fixture = await oauthFixture([], (grantType) =>
+      grantType === "authorization_code"
+        ? "openid offline_access skills"
+        : narrowedScope,
+    );
+    const options = { ...fixture.options, scopes: ["SKILLS"] };
+    const auth = createGleanAuth(options);
+    await auth.login({
+      authorize: (authorizationUrl) =>
+        Promise.resolve(
+          new URL(
+            `http://127.0.0.1:54321/oauth/callback?code=code&state=${String(authorizationUrl.searchParams.get("state"))}`,
+          ),
+        ),
+    });
+    const key = fixtureStateKey(fixture, "openid offline_access SKILLS");
+    const storage = { stateDir: options.stateDir };
+    const before = await readState(key, storage);
+    await expect(createGleanTokenProvider(options)()).rejects.toThrow(
+      "OAuth grant is missing a requested scope",
+    );
+    expect(fixture.tokenRequests()).toBe(2);
+    await expect(readState(key, storage)).resolves.toEqual(before);
+  });
+
+  it.each([
+    "openid offline_access skill",
+    "openid skills",
+    "offline_access skills",
+  ])(
+    "rejects a narrowed cached grant in provider and status: %s",
+    async (grantedScope) => {
+      delete process.env.GLEAN_API_TOKEN;
+      const fixture = await oauthFixture();
+      const options = { ...fixture.options, scopes: ["SKILLS"] };
+      await writeState(
+        fixtureStateKey(fixture, "openid offline_access SKILLS"),
+        {
+          clientId: "registered-client",
+          redirectUri: "http://127.0.0.1:54321/oauth/callback",
+          registrationScope: "openid offline_access SKILLS",
+          grantedScope,
+          accessToken: "cached-access-token",
+          refreshToken: "cached-refresh-token",
+          expiresAt: Date.now() + 3_600_000,
+        },
+        { stateDir: options.stateDir },
+      );
+      await expect(createGleanTokenProvider(options)()).rejects.toThrow(
+        "OAuth grant is missing a requested scope",
+      );
+      await expect(createGleanAuth(options).status()).resolves.toMatchObject({
+        authenticated: false,
+        source: "oauth",
+      });
+      expect(fixture.tokenRequests()).toBe(0);
+    },
+  );
+
+  it("keeps request spelling, tenant, and profile as separate state identities", async () => {
+    delete process.env.GLEAN_API_TOKEN;
+    const fixture = await oauthFixture([], "openid offline_access skills");
+    const options = { ...fixture.options, scopes: ["SKILLS"] };
+    await createGleanAuth(options).login({
+      authorize: (authorizationUrl) =>
+        Promise.resolve(
+          new URL(
+            `http://127.0.0.1:54321/oauth/callback?code=code&state=${String(authorizationUrl.searchParams.get("state"))}`,
+          ),
+        ),
+    });
+    for (const otherOptions of [
+      { ...options, scopes: ["skills"] },
+      { ...options, profile: "other-profile" },
+      { ...options, serverUrl: "https://other-be.glean.com" },
+    ]) {
+      await expect(createGleanTokenProvider(otherOptions)()).rejects.toThrow(
+        "OAuth sign-in is required",
+      );
+      await expect(
+        createGleanAuth(otherOptions).status(),
+      ).resolves.toMatchObject({
+        authenticated: false,
+        source: "none",
+      });
+    }
+    expect(fixture.tokenRequests()).toBe(1);
   });
 
   it("uses a static client without dynamic registration", async () => {
