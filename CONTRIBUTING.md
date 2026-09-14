@@ -22,7 +22,7 @@ The approved public JavaScript API is intentionally limited to:
 
 The approved CLI commands are `login`, `status`, `token`, and `logout`.
 
-Keep PKCE values, state storage, OAuth exchanges, client registration, refresh behavior, and locking behind the two public API entry points and four CLI commands. Preserve scope spelling in requests, registration, and state identity. Glean can return lowercase Client API scope grants when a request uses enum-style uppercase names, so compare returned grant names case-insensitively. Advertised `scopes_supported` metadata is advisory, while the scope actually granted by the token endpoint is authoritative. Reject grants that omit a requested scope.
+Keep PKCE values, state storage, OAuth exchanges, client registration, refresh behavior, and locking behind the two public API entry points and four CLI commands. Preserve scope casing in requests, registration, and state identity. Glean can return lowercase Client API scope grants when a request uses enum-style uppercase names, so compare returned grant names case-insensitively. Advertised `scopes_supported` metadata is advisory, while the scope actually granted by the token endpoint is authoritative. Reject grants that omit a requested scope.
 
 The CLI never reads or writes project `.env` files. Tenant resolution is limited to `--server-url`, `--email`, or `GLEAN_SERVER_URL`. OAuth state belongs only in the package state directory (`$XDG_STATE_HOME/glean-auth` when `XDG_STATE_HOME` is absolute, otherwise `~/.local/state/glean-auth`), never in project files. Only the explicit `token` command may print an OAuth credential.
 

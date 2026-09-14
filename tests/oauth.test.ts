@@ -532,7 +532,7 @@ describe("Glean OAuth", () => {
     },
   );
 
-  it("keeps request spelling, tenant, and profile as separate state identities", async () => {
+  it("keeps scope casing, tenant, and profile as separate state identities", async () => {
     delete process.env.GLEAN_API_TOKEN;
     const fixture = await oauthFixture([], "openid offline_access skills");
     const options = { ...fixture.options, scopes: ["SKILLS"] };
