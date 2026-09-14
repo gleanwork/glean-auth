@@ -629,8 +629,13 @@ function assertGrantedScopes(
   grantedScope: string,
   requestedScopes: readonly string[],
 ): void {
-  const granted = new Set(normalizeScopes(grantedScope));
-  const missing = requestedScopes.filter((scope) => !granted.has(scope));
+  // Glean returns Client API scope grants in lowercase even when requested with enum-style uppercase names.
+  const granted = new Set(
+    normalizeScopes(grantedScope).map((scope) => scope.toLowerCase()),
+  );
+  const missing = requestedScopes.filter(
+    (scope) => !granted.has(scope.toLowerCase()),
+  );
   if (missing.length > 0) {
     throw new Error("The OAuth grant is missing a requested scope");
   }
