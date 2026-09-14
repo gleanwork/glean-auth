@@ -629,9 +629,7 @@ function assertGrantedScopes(
   grantedScope: string,
   requestedScopes: readonly string[],
 ): void {
-  // Glean's OAuth server lowercases all scope tokens when intersecting grants,
-  // including standard scopes. This is Glean-specific, not a general OAuth rule.
-  // Preserve request spelling and state identity; normalize only this comparison.
+  // Glean returns Client API scope grants in lowercase even when requested with enum-style uppercase names.
   const granted = new Set(
     normalizeScopes(grantedScope).map((scope) => scope.toLowerCase()),
   );

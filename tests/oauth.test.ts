@@ -372,12 +372,9 @@ describe("Glean OAuth", () => {
   it.each([
     ["SKILLS", "openid offline_access skills"],
     ["SEARCH CHAT MCP", "openid offline_access search chat mcp"],
-    [
-      "OpenID OFFLINE_ACCESS Profile EMAIL Custom.Scope",
-      "openid offline_access profile email custom.scope",
-    ],
+    ["AUTH_TOKEN_CREATOR", "openid offline_access auth_token_creator"],
   ])(
-    "accepts Glean's lowercase grants for %s across login, status, and concurrent refresh",
+    "accepts lowercase grants for enum-style Glean scopes %s across login, status, and concurrent refresh",
     async (requestedScope, grantedScope) => {
       delete process.env.GLEAN_API_TOKEN;
       const fixture = await oauthFixture([], grantedScope);
